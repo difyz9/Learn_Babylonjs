@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Babylon.js 材质展示</title>
+    
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background: #000;
+        }
+        
+        #canvas {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            touch-action: none;
+        }
+        
+        #materialSelector {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 8px;
+            color: white;
+            min-width: 200px;
+        }
+        
+        .material-button {
+            display: block;
+            width: 100%;
+            margin: 5px 0;
+            padding: 8px 12px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .material-button:hover {
+            background: #45a049;
+        }
+        
+        .material-button.active {
+            background: #FF5722;
+        }
+        
+        #info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 8px;
+            color: white;
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div id="materialSelector">
+        <h3>材质选择器</h3>
+        <button class="material-button active" onclick="changeMaterial('standard')">标准材质</button>
+        <button class="material-button" onclick="changeMaterial('pbr')">PBR 材质</button>
+        <button class="material-button" onclick="changeMaterial('metal')">金属材质</button>
+        <button class="material-button" onclick="changeMaterial('glass')">玻璃材质</button>
+        <button class="material-button" onclick="changeMaterial('emissive')">发光材质</button>
+        <button class="material-button" onclick="changeMaterial('textured')">纹理材质</button>
+        <button class="material-button" onclick="changeMaterial('animated')">动画材质</button>
+    </div>
+    
+    <div id="info">
+        <h3 id="materialName">标准材质</h3>
+        <p id="materialDesc">基础的漫反射和高光材质，适用于大多数物体的渲染。</p>
+        <div><strong>属性:</strong></div>
+        <div id="materialProps">漫反射颜色、高光颜色、高光强度</div>
+    </div>
+    
+    <script>
+        let engine, scene, camera;
+        let targetMesh;
+        let currentMaterial = 'standard';
+        
+        // 材质信息
+        const materialInfo = {
+            standard: {
+                name: "标准材质 (StandardMaterial)",
+                desc: "基础的漫反射和高光材质，适用于大多数物体的渲染。",
+                props: "漫反射颜色、高光颜色、高光强度、透明度"
+            },
+            pbr: {
+                name: "PBR 材质 (Physically Based Rendering)",
+                desc: "基于物理的渲染材质，提供更真实的光照效果。",
+                props: "基础颜色、金属度、粗糙度、法线贴图"
+            },
+            metal: {
+                name: "金属材质",
+                desc: "高反射的金属表面材质，具有强烈的镜面反射效果。",
+                props: "高金属度、低粗糙度、强反射"
+            },
+            glass: {
+                name: "玻璃材质",
+                desc: "透明的玻璃材质，支持折射和反射效果。",
+                props: "高透明度、折射率、环境反射"
+            },
+            emissive: {
+                name: "发光材质",
+                desc: "自发光材质，可以照亮周围的物体。",
+                props: "发射颜色、发射强度、辉光效果"
+            },
+            textured: {
+                name: "纹理材质",
+                desc: "使用贴图纹理的材质，可以显示复杂的表面细节。",
+                props: "漫反射贴图、法线贴图、高光贴图"
+            },
+            animated: {
+                name: "动画材质",
+                desc: "具有动画效果的材质，如流动的岩浆或水面波纹。",
+                props: "时间变化、UV动画、颜色渐变"
+            }
+        };
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('canvas');
+            engine = new BABYLON.Engine(canvas, true);
+            
+            scene = createScene();
+            
+            engine.runRenderLoop(() => {
+                scene.render();
+            });
+            
+            window.addEventListener('resize', () => {
+                engine.resize();
+            });
+        });
+        
+        const createScene = () => {
+            const scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color3(0.05, 0.05, 0.1);
+            
+            // 摄像机
+            camera = new BABYLON.ArcRotateCamera(
+                "camera",
+                -Math.PI / 2,
+                Math.PI / 2.5,
+                8,
+                BABYLON.Vector3.Zero(),
+                scene
+            );
+            camera.attachToCanvas(canvas, true);
+            camera.lowerRadiusLimit = 3;
+            camera.upperRadiusLimit = 15;
+            
+            // 光源设置
+            setupLighting(scene);
+            
+            // 创建目标网格 - 可以展示材质的复杂模型
+            createTargetMesh(scene);
+            
+            // 创建环境
+            createEnvironment(scene);
+            
+            // 初始材质
+            changeMaterial('standard');
+            
+            return scene;
+        };
+        
+        const setupLighting = (scene) => {
+            // 环境光
+            const hemiLight = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+            hemiLight.intensity = 0.3;
+            hemiLight.diffuse = new BABYLON.Color3(0.7, 0.7, 1);
+            
+            // 主光源
+            const dirLight = new BABYLON.DirectionalLight("dir", new BABYLON.Vector3(-1, -1, -1), scene);
+            dirLight.intensity = 1.0;
+            dirLight.position = new BABYLON.Vector3(5, 5, 5);
+            
+            // 补光
+            const fillLight = new BABYLON.DirectionalLight("fill", new BABYLON.Vector3(1, 0, 1), scene);
+            fillLight.intensity = 0.3;
+            fillLight.diffuse = new BABYLON.Color3(1, 0.8, 0.6);
+        };
+        
+        const createTargetMesh = (scene) => {
+            // 创建一个复杂的几何体来展示材质效果
+            const sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {
+                diameter: 3,
+                segments: 64
+            }, scene);
+            
+            // 添加一些细节
+            const torus = BABYLON.MeshBuilder.CreateTorus("torus", {
+                diameter: 4,
+                thickness: 0.3,
+                tessellation: 32
+            }, scene);
+            
+            // 合并网格
+            targetMesh = BABYLON.Mesh.MergeMeshes([sphere, torus]);
+            targetMesh.name = "targetMesh";
+            
+            // 添加旋转动画
+            scene.registerBeforeRender(() => {
+                targetMesh.rotation.y += 0.01;
+                targetMesh.rotation.x = Math.sin(Date.now() * 0.001) * 0.2;
+            });
+        };
+        
+        const createEnvironment = (scene) => {
+            // 创建地面
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 15, height: 15}, scene);
+            const groundMaterial = new BABYLON.StandardMaterial("groundMat", scene);
+            groundMaterial.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.15);
+            groundMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+            ground.material = groundMaterial;
+            ground.position.y = -2;
+            
+            // 创建背景球
+            const skybox = BABYLON.MeshBuilder.CreateSphere("skybox", {diameter: 50}, scene);
+            const skyboxMaterial = new BABYLON.StandardMaterial("skyboxMat", scene);
+            skyboxMaterial.backFaceCulling = false;
+            skyboxMaterial.emissiveColor = new BABYLON.Color3(0.05, 0.05, 0.1);
+            skyboxMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
+            skybox.material = skyboxMaterial;
+        };
+        
+        const changeMaterial = (materialType) => {
+            if (!targetMesh) return;
+            
+            // 更新UI
+            document.querySelectorAll('.material-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event?.target?.classList.add('active');
+            
+            // 更新信息面板
+            const info = materialInfo[materialType];
+            document.getElementById('materialName').textContent = info.name;
+            document.getElementById('materialDesc').textContent = info.desc;
+            document.getElementById('materialProps').textContent = info.props;
+            
+            currentMaterial = materialType;
+            
+            // 创建并应用材质
+            let material;
+            
+            switch (materialType) {
+                case 'standard':
+                    material = createStandardMaterial();
+                    break;
+                case 'pbr':
+                    material = createPBRMaterial();
+                    break;
+                case 'metal':
+                    material = createMetalMaterial();
+                    break;
+                case 'glass':
+                    material = createGlassMaterial();
+                    break;
+                case 'emissive':
+                    material = createEmissiveMaterial();
+                    break;
+                case 'textured':
+                    material = createTexturedMaterial();
+                    break;
+                case 'animated':
+                    material = createAnimatedMaterial();
+                    break;
+            }
+            
+            targetMesh.material = material;
+        };
+        
+        const createStandardMaterial = () => {
+            const material = new BABYLON.StandardMaterial("standard", scene);
+            material.diffuseColor = new BABYLON.Color3(0.8, 0.2, 0.2);
+            material.specularColor = new BABYLON.Color3(1, 1, 1);
+            material.specularPower = 32;
+            material.ambientColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+            return material;
+        };
+        
+        const createPBRMaterial = () => {
+            const material = new BABYLON.PBRMaterial("pbr", scene);
+            material.baseColor = new BABYLON.Color3(0.2, 0.6, 0.8);
+            material.metallicFactor = 0.1;
+            material.roughnessFactor = 0.3;
+            material.environmentIntensity = 1.0;
+            return material;
+        };
+        
+        const createMetalMaterial = () => {
+            const material = new BABYLON.PBRMaterial("metal", scene);
+            material.baseColor = new BABYLON.Color3(1.0, 0.765557, 0.336057); // 金色
+            material.metallicFactor = 1.0;
+            material.roughnessFactor = 0.05;
+            material.environmentIntensity = 1.0;
+            return material;
+        };
+        
+        const createGlassMaterial = () => {
+            const material = new BABYLON.PBRMaterial("glass", scene);
+            material.baseColor = new BABYLON.Color3(0.8, 0.9, 1.0);
+            material.metallicFactor = 0.0;
+            material.roughnessFactor = 0.0;
+            material.alpha = 0.2;
+            material.indexOfRefraction = 1.5;
+            material.environmentIntensity = 1.0;
+            return material;
+        };
+        
+        const createEmissiveMaterial = () => {
+            const material = new BABYLON.StandardMaterial("emissive", scene);
+            material.emissiveColor = new BABYLON.Color3(0.2, 0.8, 1.0);
+            material.diffuseColor = new BABYLON.Color3(0, 0, 0);
+            
+            // 添加脉冲效果
+            let time = 0;
+            scene.registerBeforeRender(() => {
+                time += 0.02;
+                const intensity = 0.5 + Math.sin(time) * 0.3;
+                material.emissiveColor = new BABYLON.Color3(
+                    0.2 * intensity,
+                    0.8 * intensity,
+                    1.0 * intensity
+                );
+            });
+            
+            return material;
+        };
+        
+        const createTexturedMaterial = () => {
+            const material = new BABYLON.StandardMaterial("textured", scene);
+            
+            // 创建程序化纹理
+            const texture = new BABYLON.DynamicTexture("checkerTexture", 512, scene);
+            const ctx = texture.getContext();
+            
+            // 绘制棋盘格图案
+            const size = 32;
+            for (let x = 0; x < 512; x += size) {
+                for (let y = 0; y < 512; y += size) {
+                    const isWhite = ((x / size) + (y / size)) % 2 === 0;
+                    ctx.fillStyle = isWhite ? '#ffffff' : '#333333';
+                    ctx.fillRect(x, y, size, size);
+                }
+            }
+            
+            // 添加一些装饰
+            ctx.fillStyle = '#ff6b6b';
+            for (let i = 0; i < 10; i++) {
+                ctx.beginPath();
+                ctx.arc(Math.random() * 512, Math.random() * 512, Math.random() * 20 + 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            texture.update();
+            
+            material.diffuseTexture = texture;
+            material.specularColor = new BABYLON.Color3(0.5, 0.5, 0.5);
+            
+            return material;
+        };
+        
+        const createAnimatedMaterial = () => {
+            const material = new BABYLON.StandardMaterial("animated", scene);
+            
+            // 创建动画纹理
+            const texture = new BABYLON.DynamicTexture("animatedTexture", 512, scene);
+            
+            let time = 0;
+            const updateTexture = () => {
+                time += 0.05;
+                const ctx = texture.getContext();
+                
+                // 清除画布
+                ctx.fillStyle = '#000022';
+                ctx.fillRect(0, 0, 512, 512);
+                
+                // 绘制动画波纹
+                for (let i = 0; i < 5; i++) {
+                    const radius = (time * 50 + i * 100) % 400;
+                    const alpha = 1 - (radius / 400);
+                    
+                    ctx.strokeStyle = `rgba(0, 255, 255, ${alpha})`;
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(256, 256, radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                
+                // 绘制粒子
+                for (let i = 0; i < 20; i++) {
+                    const x = 256 + Math.sin(time + i) * 200;
+                    const y = 256 + Math.cos(time + i * 0.7) * 200;
+                    const size = Math.sin(time * 2 + i) * 3 + 5;
+                    
+                    ctx.fillStyle = `hsl(${(time * 100 + i * 20) % 360}, 100%, 50%)`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                texture.update();
+            };
+            
+            scene.registerBeforeRender(updateTexture);
+            
+            material.diffuseTexture = texture;
+            material.emissiveTexture = texture;
+            material.emissiveColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+            
+            return material;
+        };
+        
+        // 键盘控制
+        window.addEventListener('keydown', (event) => {
+            const materialTypes = ['standard', 'pbr', 'metal', 'glass', 'emissive', 'textured', 'animated'];
+            const currentIndex = materialTypes.indexOf(currentMaterial);
+            
+            switch(event.key) {
+                case 'ArrowLeft':
+                    const prevIndex = (currentIndex - 1 + materialTypes.length) % materialTypes.length;
+                    changeMaterial(materialTypes[prevIndex]);
+                    break;
+                case 'ArrowRight':
+                    const nextIndex = (currentIndex + 1) % materialTypes.length;
+                    changeMaterial(materialTypes[nextIndex]);
+                    break;
+            }
+        });
+    </script>
+</body>
+</html>

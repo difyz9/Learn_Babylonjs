@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Babylon.js 基础示例</title>
+    
+    <!-- 引入 Babylon.js -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background: #000;
+        }
+        
+        #canvas {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            touch-action: none;
+        }
+        
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            max-width: 300px;
+            backdrop-filter: blur(10px);
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .control-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            margin: 2px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .control-button:hover {
+            background: #45a049;
+        }
+        
+        .control-button.pause {
+            background: #ff9800;
+        }
+        
+        .control-button.stop {
+            background: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div id="info">
+        <h3>🚀 Babylon.js 3D 场景展示</h3>
+        <div><strong>控制方式:</strong></div>
+        <div>• 鼠标左键拖拽: 旋转视角</div>
+        <div>• 鼠标滚轮: 缩放</div>
+        <div>• 鼠标右键拖拽: 平移</div>
+        <div><strong>场景内容:</strong></div>
+        <div>• 多种几何体展示</div>
+        <div>• 不同材质效果</div>
+        <div>• 动画系统演示</div>
+    </div>
+    
+    <div id="controls">
+        <button class="control-button" onclick="toggleAnimations()">暂停/播放动画</button>
+        <button class="control-button pause" onclick="toggleWireframe()">线框模式</button>
+        <button class="control-button stop" onclick="resetCamera()">重置视角</button>
+    </div>
+    
+    <script>
+        let engine, scene, camera;
+        let animationsRunning = true;
+        let wireframeMode = false;
+        let animationGroup;
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('canvas');
+            engine = new BABYLON.Engine(canvas, true, {
+                preserveDrawingBuffer: true,
+                stencil: true
+            });
+            
+            scene = createScene();
+            
+            engine.runRenderLoop(() => {
+                scene.render();
+            });
+            
+            window.addEventListener('resize', () => {
+                engine.resize();
+            });
+        });
+        
+        const createScene = () => {
+            const scene = new BABYLON.Scene(engine);
+            
+            // 设置场景背景
+            scene.clearColor = new BABYLON.Color3(0.1, 0.1, 0.2);
+            
+            // 创建摄像机
+            camera = new BABYLON.ArcRotateCamera(
+                "camera",
+                -Math.PI / 2,
+                Math.PI / 2.5,
+                15,
+                BABYLON.Vector3.Zero(),
+                scene
+            );
+            camera.attachToCanvas(canvas, true);
+            camera.lowerRadiusLimit = 5;
+            camera.upperRadiusLimit = 30;
+            
+            // 创建光源
+            setupLighting(scene);
+            
+            // 创建几何体
+            const meshes = createMeshes(scene);
+            
+            // 创建动画
+            setupAnimations(scene, meshes);
+            
+            // 创建环境
+            createEnvironment(scene);
+            
+            return scene;
+        };
+        
+        const setupLighting = (scene) => {
+            // 环境光
+            const hemisphericLight = new BABYLON.HemisphericLight(
+                "hemisphericLight",
+                new BABYLON.Vector3(0, 1, 0),
+                scene
+            );
+            hemisphericLight.intensity = 0.6;
+            hemisphericLight.diffuse = new BABYLON.Color3(0.8, 0.8, 1);
+            
+            // 主光源
+            const directionalLight = new BABYLON.DirectionalLight(
+                "directionalLight",
+                new BABYLON.Vector3(-1, -1, -1),
+                scene
+            );
+            directionalLight.intensity = 0.8;
+            directionalLight.diffuse = new BABYLON.Color3(1, 0.9, 0.7);
+            
+            // 点光源
+            const pointLight = new BABYLON.PointLight(
+                "pointLight",
+                new BABYLON.Vector3(0, 5, 0),
+                scene
+            );
+            pointLight.intensity = 0.5;
+            pointLight.diffuse = new BABYLON.Color3(1, 0.5, 0.8);
+        };
+        
+        const createMeshes = (scene) => {
+            const meshes = [];
+            
+            // 1. 红色立方体 - 标准材质
+            const box = BABYLON.MeshBuilder.CreateBox("box", {size: 2}, scene);
+            const boxMaterial = new BABYLON.StandardMaterial("boxMaterial", scene);
+            boxMaterial.diffuseColor = new BABYLON.Color3(1, 0.2, 0.2);
+            boxMaterial.specularColor = new BABYLON.Color3(1, 1, 1);
+            boxMaterial.specularPower = 32;
+            box.material = boxMaterial;
+            box.position = new BABYLON.Vector3(-6, 1, 0);
+            meshes.push(box);
+            
+            // 2. 纹理球体
+            const sphere = BABYLON.MeshBuilder.CreateSphere("sphere", {diameter: 2, segments: 32}, scene);
+            const sphereMaterial = new BABYLON.StandardMaterial("sphereMaterial", scene);
+            // 使用程序化纹理
+            const sphereTexture = new BABYLON.DynamicTexture("sphereTexture", 512, scene);
+            const ctx = sphereTexture.getContext();
+            ctx.fillStyle = "#4CAF50";
+            ctx.fillRect(0, 0, 512, 512);
+            ctx.fillStyle = "#2E7D32";
+            for (let i = 0; i < 20; i++) {
+                ctx.beginPath();
+                ctx.arc(Math.random() * 512, Math.random() * 512, Math.random() * 30 + 10, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            sphereTexture.update();
+            sphereMaterial.diffuseTexture = sphereTexture;
+            sphere.material = sphereMaterial;
+            sphere.position = new BABYLON.Vector3(-3, 1, 0);
+            meshes.push(sphere);
+            
+            // 3. PBR 金属圆柱
+            const cylinder = BABYLON.MeshBuilder.CreateCylinder("cylinder", {
+                height: 3,
+                diameterTop: 1.5,
+                diameterBottom: 2,
+                tessellation: 16
+            }, scene);
+            const pbrMaterial = new BABYLON.PBRMaterial("pbrMaterial", scene);
+            pbrMaterial.baseColor = new BABYLON.Color3(1.0, 0.765557, 0.336057);
+            pbrMaterial.metallicFactor = 0.9;
+            pbrMaterial.roughnessFactor = 0.1;
+            cylinder.material = pbrMaterial;
+            cylinder.position = new BABYLON.Vector3(0, 1.5, 0);
+            meshes.push(cylinder);
+            
+            // 4. 透明圆锥
+            const cone = BABYLON.MeshBuilder.CreateCylinder("cone", {
+                height: 3,
+                diameterTop: 0,
+                diameterBottom: 2,
+                tessellation: 8
+            }, scene);
+            const coneMaterial = new BABYLON.StandardMaterial("coneMaterial", scene);
+            coneMaterial.diffuseColor = new BABYLON.Color3(0.3, 0.7, 1);
+            coneMaterial.alpha = 0.7;
+            coneMaterial.emissiveColor = new BABYLON.Color3(0, 0.1, 0.2);
+            cone.material = coneMaterial;
+            cone.position = new BABYLON.Vector3(3, 1.5, 0);
+            meshes.push(cone);
+            
+            // 5. 发光环形体
+            const torus = BABYLON.MeshBuilder.CreateTorus("torus", {
+                diameter: 2,
+                thickness: 0.4,
+                tessellation: 32
+            }, scene);
+            const torusMaterial = new BABYLON.StandardMaterial("torusMaterial", scene);
+            torusMaterial.emissiveColor = new BABYLON.Color3(1, 0.3, 0.8);
+            torusMaterial.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+            torus.material = torusMaterial;
+            torus.position = new BABYLON.Vector3(6, 1, 0);
+            meshes.push(torus);
+            
+            return meshes;
+        };
+        
+        const setupAnimations = (scene, meshes) => {
+            // 创建动画组
+            animationGroup = new BABYLON.AnimationGroup("mainAnimations");
+            
+            meshes.forEach((mesh, index) => {
+                // 旋转动画
+                const rotationAnimation = new BABYLON.Animation(
+                    `rotation_${index}`,
+                    "rotation.y",
+                    30,
+                    BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+                    BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
+                );
+                
+                const rotationKeys = [
+                    { frame: 0, value: 0 },
+                    { frame: 120, value: Math.PI * 2 }
+                ];
+                rotationAnimation.setKeys(rotationKeys);
+                
+                // 上下浮动动画
+                const floatAnimation = new BABYLON.Animation(
+                    `float_${index}`,
+                    "position.y",
+                    30,
+                    BABYLON.Animation.ANIMATIONTYPE_FLOAT,
+                    BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
+                );
+                
+                const baseY = mesh.position.y;
+                const floatKeys = [
+                    { frame: 0, value: baseY },
+                    { frame: 60, value: baseY + 0.5 },
+                    { frame: 120, value: baseY }
+                ];
+                floatAnimation.setKeys(floatKeys);
+                
+                // 应用缓动函数
+                const easing = new BABYLON.SineEase();
+                easing.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEINOUT);
+                floatAnimation.setEasingFunction(easing);
+                
+                // 添加到动画组
+                animationGroup.addTargetedAnimation(rotationAnimation, mesh);
+                animationGroup.addTargetedAnimation(floatAnimation, mesh);
+            });
+            
+            // 播放动画
+            animationGroup.play(true);
+        };
+        
+        const createEnvironment = (scene) => {
+            // 创建地面
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", {
+                width: 20,
+                height: 20,
+                subdivisions: 4
+            }, scene);
+            
+            const groundMaterial = new BABYLON.StandardMaterial("groundMaterial", scene);
+            
+            // 创建地面纹理
+            const groundTexture = new BABYLON.DynamicTexture("groundTexture", 1024, scene);
+            const ctx = groundTexture.getContext();
+            
+            // 创建网格图案
+            ctx.fillStyle = "#1a1a2e";
+            ctx.fillRect(0, 0, 1024, 1024);
+            ctx.strokeStyle = "#16213e";
+            ctx.lineWidth = 2;
+            
+            const gridSize = 64;
+            for (let i = 0; i <= 1024; i += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, 1024);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(1024, i);
+                ctx.stroke();
+            }
+            
+            groundTexture.update();
+            groundMaterial.diffuseTexture = groundTexture;
+            groundMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+            ground.material = groundMaterial;
+            
+            // 创建天空盒
+            const skybox = BABYLON.MeshBuilder.CreateSphere("skyBox", {diameter:100}, scene);
+            const skyboxMaterial = new BABYLON.StandardMaterial("skyBox", scene);
+            skyboxMaterial.backFaceCulling = false;
+            skyboxMaterial.emissiveColor = new BABYLON.Color3(0.1, 0.1, 0.3);
+            skyboxMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
+            skybox.material = skyboxMaterial;
+            skybox.infiniteDistance = true;
+        };
+        
+        // 控制函数
+        const toggleAnimations = () => {
+            if (animationsRunning) {
+                animationGroup.pause();
+                animationsRunning = false;
+            } else {
+                animationGroup.play();
+                animationsRunning = true;
+            }
+        };
+        
+        const toggleWireframe = () => {
+            wireframeMode = !wireframeMode;
+            scene.meshes.forEach(mesh => {
+                if (mesh.material && mesh.name !== "skyBox" && mesh.name !== "ground") {
+                    mesh.material.wireframe = wireframeMode;
+                }
+            });
+        };
+        
+        const resetCamera = () => {
+            camera.setTarget(BABYLON.Vector3.Zero());
+            camera.alpha = -Math.PI / 2;
+            camera.beta = Math.PI / 2.5;
+            camera.radius = 15;
+        };
+        
+        // 性能监控
+        scene?.onAfterRenderObservable?.add(() => {
+            const fps = Math.round(engine.getFps());
+            if (fps < 30) {
+                console.warn("性能警告: FPS 低于 30");
+            }
+        });
+    </script>
+</body>
+</html>
