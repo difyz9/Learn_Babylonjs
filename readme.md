@@ -1,6 +1,46 @@
 # Babylon.js 学习笔记与教程实战
 
-## 📚 目录
+## � 项目结构
+
+```
+Babylon_js/
+├── readme.md                    # 主要学习指南和目录
+├── tutorials/                   # 分步教程系列
+│   ├── 01-basic-setup.md       # 基础环境搭建
+│   ├── 02-geometry-materials.md # 几何体和材质
+│   ├── 03-animation-system.md  # 动画系统
+│   ├── 04-lighting-cameras.md  # 光照和摄像机
+│   ├── 05-user-interaction.md  # 用户交互
+│   ├── 06-asset-loading.md     # 资源加载
+│   ├── 07-physics-simulation.md # 物理模拟
+│   └── 08-advanced-rendering.md # 高级渲染
+├── examples/                    # 实践示例
+│   ├── basic-scene.html        # 基础场景示例
+│   ├── animated-objects.html   # 动画对象示例
+│   ├── interactive-scene.html  # 交互场景示例
+│   ├── model-viewer.html       # 模型查看器
+│   ├── physics-demo.html       # 物理演示
+│   ├── advanced-lighting.html  # 高级光照
+│   └── nextjs-babylon-demo/    # Next.js 集成示例项目 ⭐
+│       ├── README.md           # 项目说明文档
+│       ├── package.json        # 依赖配置
+│       ├── next.config.js      # Next.js 配置
+│       ├── components/         # React 组件
+│       └── pages/              # Next.js 页面
+├── projects/                    # 综合项目案例
+│   ├── 3d-product-viewer/      # 3D 产品展示器
+│   ├── virtual-museum/         # 虚拟博物馆
+│   ├── game-prototype/         # 游戏原型
+│   └── data-visualization/     # 数据可视化
+├── resources/                   # 学习资源
+│   ├── faq.md                  # 常见问题解答
+│   ├── troubleshooting.md      # 问题排查指南
+│   ├── performance-tips.md     # 性能优化建议
+│   └── useful-links.md         # 有用链接汇总
+└── nextjs-babylon-guide.md     # Next.js 集成详细指南 🚀
+```
+
+## �📚 目录
 
 - [1. Babylon.js 基础入门](#1-babylonjs-基础入门)
 - [2. 核心概念详解](#2-核心概念详解)
@@ -8,7 +48,8 @@
 - [4. 高级技巧](#4-高级技巧)
 - [5. 性能优化](#5-性能优化)
 - [6. 项目实战](#6-项目实战)
-- [7. 学习资源](#7-学习资源)
+- [7. Next.js 集成开发](#7-nextjs-集成开发)
+- [8. 学习资源](#8-学习资源)
 
 ---
 
@@ -181,7 +222,47 @@ const hemisphericLight = new BABYLON.HemisphericLight(
 
 ---
 
-## 7. 学习资源
+## 7. Next.js 集成开发
+
+### 7.1 项目环境搭建
+
+使用 Next.js 框架开发现代化的 3D Web 应用程序：
+
+```bash
+# 创建 Next.js + Babylon.js 项目
+npx create-next-app@latest babylon-nextjs-app
+cd babylon-nextjs-app
+
+# 安装 Babylon.js 依赖
+npm install babylonjs babylonjs-loaders babylonjs-materials babylonjs-gui
+npm install --save-dev @types/babylonjs
+```
+
+### 7.2 核心特性
+
+- **React 组件化**: 将 3D 场景封装为可复用组件
+- **SSR 兼容性**: 解决服务端渲染问题
+- **状态管理**: 使用 Context API 管理 3D 状态
+- **TypeScript 支持**: 完整的类型定义
+- **性能优化**: 代码分割和懒加载
+- **生产就绪**: 部署和优化策略
+
+### 7.3 详细教程
+
+📖 **[完整 Next.js + Babylon.js 集成指南](./nextjs-babylon-guide.md)**
+
+包含：
+- 项目初始化和配置
+- 组件化开发模式
+- 状态管理和数据绑定
+- SSR 问题解决方案
+- 性能优化技巧
+- 完整项目示例
+- 部署和生产环境配置
+
+---
+
+## 8. 学习资源
 
 - [官方文档](https://doc.babylonjs.com/)
 - [Playground](https://playground.babylonjs.com/)
